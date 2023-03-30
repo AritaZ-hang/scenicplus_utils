@@ -12,7 +12,7 @@
 1. 在终端中启动ray 
 
    ```shell
-   ray start
+   ray start --head
    ```
 
 2. 在python中显式的调用ray
