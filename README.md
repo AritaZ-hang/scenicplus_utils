@@ -8,3 +8,4 @@
 ## 目前进度
 1. run_homer.py & run_cistarget.py 对 ensembl物种的支持
 2. utils.py load_motif_annotations函数 消除潜在NAN值对 pd data frame合并的影响
+3. enhancer_to_gene.py get_search_space函数 更改判断顺序（建议assembly按ensembl的格式来）
