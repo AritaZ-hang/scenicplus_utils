@@ -194,7 +194,7 @@ def get_search_space(SCENICPLUS_obj: SCENICPLUS,
         # check if biomart host is correct
         dataset_display_name = getattr(
             mart.datasets[dataset_name], 'display_name')
-        if not (ASM_SYNONYMS[assembly] in dataset_display_name or assembly in dataset_display_name):
+        if not (assembly in dataset_display_name or ASM_SYNONYMS[assembly] in dataset_display_name): ## adapted by Shuang Zhang, change the decision order
             print(
                 f'\u001b[31m!! The provided assembly {assembly} does not match the biomart host ({dataset_display_name}).\n Please check biomart host parameter\u001b[0m\nFor more info see: https://m.ensembl.org/info/website/archives/assembly.html')
         # check wether dataset can be accessed.
