@@ -99,7 +99,8 @@ INTERACT_AS = """table interact
 
 def get_search_space(SCENICPLUS_obj: SCENICPLUS,
                      species=None,
-                     assembly=None,
+                     ensembl_assembly=None,
+                     ucsc_assembly = None,
                      pr_annot=None,
                      pr_chromsizes=None,
                      predefined_boundaries=None,
@@ -122,9 +123,10 @@ def get_search_space(SCENICPLUS_obj: SCENICPLUS,
     species: string, optional
         Name of the species (e.g. hsapiens) on whose reference genome the search space should be calculated. This will be used to retrieve gene annotations from biomart. 
         Annotations can also be manually provided using the parameter [pr_annot]. Default: None
-    assembly: string, optional
-        Name of the assembly (e.g. hg38) of the reference genome on which the search space should be calculated. 
-        This will be used to retrieve chromosome sizes from the UCSC genome browser.
+    ensembl_assembly: str
+        Genome assembly to which the data was mapped. Make sure your input assembly is available in Ensembl.
+    ucsc_assembly: str
+        Genome assembly to which the data was mapped. Make sure your input assembly is available for UCSC genome browser to download chrom sizes.
         Chromosome sizes can also be manually provided using the parameter [pr_chromsizes]. Default: None  
     pr_annot: pr.PyRanges, optional
         A :class:`pr.PyRanges` containing gene annotation, including Chromosome, Start, End, Strand (as '+' and '-'), Gene name
@@ -160,6 +162,10 @@ def get_search_space(SCENICPLUS_obj: SCENICPLUS,
     ------
     pd.DataFrame
         A data frame containing regions in the search space for each gene
+
+    ------
+    2023/04/01 adapted by Shuang Zhang
+    We distinguish between UCSC genome assembly and Ensembl assembly paramters, because some species may have different genome names.
     """
 
     # Create logger
@@ -170,10 +176,10 @@ def get_search_space(SCENICPLUS_obj: SCENICPLUS,
     log = logging.getLogger('R2G')
 
     # parameter validation
-    if ((species is None and assembly is None and pr_annot is None and pr_chromsizes is None)
-       or (species == assembly is None) and (pr_annot is None or pr_chromsizes is None)
-       or (pr_annot == pr_chromsizes is None) and (species is None or assembly is None)
-       or (species is not None and assembly is not None and pr_annot is not None and pr_chromsizes is not None)):
+    if ((species is None and ensembl_assembly is None and ucsc_assembly is None and pr_annot is None and pr_chromsizes is None)
+       or (species == ensembl_assembly is None) and (pr_annot is None or pr_chromsizes is None)
+       or (pr_annot == pr_chromsizes is None) and (species is None or ensembl_assembly is None or ucsc_assembly is None)
+       or (species is not None and ensembl_assembly is not None and ucsc_assembly is not None and pr_annot is not None and pr_chromsizes is not None)):
         raise Exception('Either a name of a species and a name of an assembly or a pyranges object containing gene annotation and a pyranges object containing chromosome sizes should be provided!')
 
     # get regions
@@ -184,7 +190,7 @@ def get_search_space(SCENICPLUS_obj: SCENICPLUS,
     pr_regions.Name = coord_to_region_names(pr_regions)
 
     # GET GENE ANNOTATION AND CHROMSIZES
-    if species is not None and assembly is not None:
+    if species is not None and ensembl_assembly is not None:
         # Download gene annotation and chromsizes
         # 1. Download gene annotation from biomart
         import pybiomart as pbm
@@ -194,9 +200,10 @@ def get_search_space(SCENICPLUS_obj: SCENICPLUS,
         # check if biomart host is correct
         dataset_display_name = getattr(
             mart.datasets[dataset_name], 'display_name')
-        if not (assembly in dataset_display_name or ASM_SYNONYMS[assembly] in dataset_display_name): ## adapted by Shuang Zhang, change the decision order
+        if not (ensembl_assembly in dataset_display_name or ASM_SYNONYMS[assembly] in dataset_display_name ): 
+            ## adapted by Shuang Zhang, change the decision order.
             print(
-                f'\u001b[31m!! The provided assembly {assembly} does not match the biomart host ({dataset_display_name}).\n Please check biomart host parameter\u001b[0m\nFor more info see: https://m.ensembl.org/info/website/archives/assembly.html')
+                f'\u001b[31m!! The provided assembly {ensembl_assembly} does not match the biomart host ({dataset_display_name}).\n Please check biomart host parameter\u001b[0m\nFor more info see: https://m.ensembl.org/info/website/archives/assembly.html')
         # check wether dataset can be accessed.
         if dataset_name not in mart.list_datasets()['name'].to_numpy():
             raise Exception(
@@ -229,7 +236,7 @@ def get_search_space(SCENICPLUS_obj: SCENICPLUS,
         # 2. Download chromosome sizes from UCSC genome browser
         import requests
         target_url = 'http://hgdownload.cse.ucsc.edu/goldenPath/{asm}/bigZips/{asm}.chrom.sizes'.format(
-            asm=assembly)
+            asm=ucsc_assembly)
         # check wether url exists
         request = requests.get(target_url)
         if request.status_code == 200:
@@ -243,7 +250,7 @@ def get_search_space(SCENICPLUS_obj: SCENICPLUS,
             chromsizes = pr.PyRanges(chromsizes)
         else:
             raise Exception(
-                'The assembly {} could not be found in http://hgdownload.cse.ucsc.edu/goldenPath/. Check assembly name or consider manually providing chromosome sizes!'.format(assembly))
+                'The assembly {} could not be found in http://hgdownload.cse.ucsc.edu/goldenPath/. Check assembly name or consider manually providing chromosome sizes!'.format(ucsc_assembly))
     else:
         # Manually provided gene annotation and chromsizes
         annot = pr_annot
